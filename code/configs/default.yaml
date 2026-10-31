@@ -1,0 +1,142 @@
+# PS4 v4 configuration. Every module hashes its own section (plus everything upstream), so
+# changing a value re-runs only that module and the ones after it.
+
+paths:
+  cache_root: cache              # per-clip outputs: <cache_root>/<clip_name>/
+
+device: cuda                     # cuda | cpu
+max_seconds: null                # e.g. 30 for a quick test; null = full clip
+
+camera:                          # M1
+  calibration_json: null         # OpenCV fisheye JSON {width,height,fx,fy,cx,cy,k1..k4}; wins if given
+  use_geocalib: true             # estimate the focal length from a few frames
+  geocalib_frames: 8
+  fallback_dfov_deg: 150.0       # equidistant fisheye guess if nothing else works
+  head_rotation:
+    enabled: true
+    max_corners: 400
+    min_inliers: 30
+    ransac_deg: 0.6              # inlier threshold on ray angle
+    ransac_iters: 200
+    hand_mask_scale: 1.6         # grow hand boxes before masking them out
+    smooth_sigma: 2.0            # frames
+
+proposals:                       # M2
+  backend: wilor                 # wilor | fake
+  imgsz: 1280
+  enhanced_pass: auto            # true | false | auto (CLAHE/gamma pass only on dark frames or frames with < 2 strong hands)
+  min_score: 0.15                # v4: weak boxes are kept; tracklet-level checks decide later
+  batch: 16
+  min_box_frac: 0.025            # box side as a fraction of the image diagonal
+  max_box_frac: 0.70
+  nms_iou: 0.5
+
+tracklets:                       # M3: link boxes only; no side, no "is it a hand" decision here
+  high_score: 0.45               # first association round
+  low_score: 0.15                # weak boxes can continue a tracklet (cloth, blur, partial hands)
+  start_score: 0.35              # needed to start a tracklet
+  gate_dist: 0.9                 # max centre jump in box sizes (+ the hand's own recent speed, for fast wiping)
+  gate_scale: [0.5, 2.0]
+  max_coast_s: 0.5               # follow a lost hand on optical flow for at most this
+  propagate: flow                # flow | none
+  flow_min_points: 8
+  flow_min_inlier: 0.4
+  cross_iou_enter: 0.20          # two tracklets overlapping more than this are cut (crossing)
+  cross_iou_exit: 0.10           # ... and cut again when they separate
+  head_compensation: true
+  split_on_handedness: true      # cut a tracklet where the detector's left/right call flips and stays flipped
+  handedness_run: 15             # ... for this many detections on each side (a track that slid onto the other hand)
+
+probe:                           # M3P: 3D on a sample of each tracklet's frames
+  stride: 3
+  max_per_tracklet: 40
+  min_det: 3                     # tracklets with fewer detections are not probed (rejected as "short")
+  verifier: clip                 # clip | fake | none: semantic check "hand or knee/foot/wood/head/tool?"
+  clip_model: openai/clip-vit-base-patch32
+  crop_pad: 1.6                  # context around the box for the semantic check
+
+assign:                          # M3A: LEFT / RIGHT / REJECT per tracklet
+  # hand score (log-odds per frame)
+  w_score: 1.0                   # x 4 x (detector score - 0.5)
+  far_ratio: 1.9                 # wrist distance > this x the wearer's typical distance -> another person's hand
+  w_far: 3.0
+  near_ratio: 0.30               # closer than this x typical -> junk filling the lens
+  abs_min_m: 0.06
+  w_near: 3.0
+  away_z: 0.45                   # forearm running away from the camera (person facing the wearer)
+  w_away: 1.5
+  top_exit_frac: 0.10            # forearm leaves the image through the top 10% -> not the wearer's arm
+  w_top: 1.0
+  kp_iou_min: 0.25               # hand model keypoints vs detector box
+  w_kpbox: 0.25                  # partly hidden hands fit the box poorly: keep this mild
+  static_min_s: 1.0              # static in the scene for its whole life (>= this long) -> table/slab/chair
+  static_spread: 0.15            # in box sizes
+  w_static: 0.5                  # mild: a hand holding still is still a hand (the semantic check does the work)
+  no_probe_penalty: 0.5
+  min_det: 3
+  accept_bias: 0.0               # raise to be stricter
+  hard_reject: -1.5
+  w_clip: 1.0                    # semantic check: penalty only, per tracklet (median over its crops)
+  clip_veto_below: 0.3           # penalise only when the median P(hand) is below this
+  w_clip_boost: 0.4              # per frame, only when the geometry also says "the wearer's hand"
+  clip_boost_max: 1.0
+  w_onarm: 2.0                   # box sits on another, stronger hand's forearm or elbow
+  # side score (log-odds right per frame)
+  w_arm: 1.0                     # where the forearm leaves the image (left edge / bottom-left vs right)
+  w_det_side: 1.2                # detector handedness (reliable on the wearer's own hands)
+  w_pos: 0.4                     # position prior (ignored inside crossings)
+  # labelling
+  link_gap_s: 0.7                # tracklets this close in time can be linked by motion
+  w_link: 1.0
+  w_parent_link: 2.0             # pieces of one tracklet (cut at an overlap) prefer the same side
+  min_piece: 5                   # frames
+  max_weight_frames: 90
+  sweeps: 10
+  exit_margin_frac: 0.06         # coasting near the border is shown as EXITING
+
+recon:                           # M4 (and M3P)
+  backend: wilor                 # egohand | wilor | fake
+  run_states: [VISIBLE, PARTIAL, EXITING]
+  box_pad: 1.15
+  blur_ref: 120.0                # Laplacian variance treated as "sharp"
+  blur_floor: 0.35               # blurred frames keep at least this weight (repaired by neighbours in M5)
+  wilor:
+    virtual_crop: true           # perspective-correct crop per hand (fisheye)
+    virtual_size: 256            # 256 is ~2x faster than 512 with the same model input (256 px)
+    virtual_fov_scale: 2.6
+    batch: 64
+  egohand:
+    repo_dir: /content/IsaacCapture/src/python/isaaccapture_egopost
+    python: /content/IsaacCapture/src/python/isaaccapture_egopost/.venv/bin/python
+    extra_args: ["--no-postprocessing_smooth", "--no_save_videos"]
+
+sequence:                        # M5
+  z_range_m: [0.05, 2.5]         # absolute wrist depth sanity range
+  rel_range: [0.30, 2.2]         # wrist distance relative to the wearer's typical hand distance (z_ref)
+  v_max_mps: 4.0
+  hampel_window: 15
+  hampel_k: 3.0
+  min_conf: 0.10
+  h_min: 2
+  h_max: 8
+  speed_ref_mps: 1.5
+  infill_max_s: 0.5              # only inside one continuous segment
+  head_stable: true
+  estimate_out_of_view: true     # bridge short out-of-view gaps with a labelled estimate
+  est_max_s: 1.5
+  reach_max_m: 0.85
+
+render:                          # M6
+  enabled: true
+  height: 720                    # output height (was 540)
+  crf: 18                        # x264 quality (lower = better; 18 is visually lossless)
+  supersample: 2                 # draw the 3D panel at 2x and downscale: smooth edges
+  view_radius_m: 0.30            # 3D view size around the hands (smaller = bigger hands)
+  follow_sigma_s: 2.0            # view centre = hands' position smoothed over this
+  trail_s: 1.0                   # length of the wrist light trail
+  max_seconds: null
+  show_rejected: true            # grey boxes on tracklets judged "not the wearer's hand", with the reason
+
+evaluate:                        # M7
+  labels_csv: null
+  iou_match: 0.3

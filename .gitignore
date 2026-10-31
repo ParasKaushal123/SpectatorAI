@@ -1,0 +1,40 @@
+# ---- dataset and anything derived from footage: never commit (hackathon data rules) ----
+# videos
+*.mp4
+*.MP4
+*.avi
+*.mov
+*.mkv
+*.webm
+# dataset / clip folders
+data/
+dataset/
+datasets/
+clips/
+videos/
+mytronD/
+# pipeline outputs and caches (contain footage-derived data)
+cache/
+results/
+ps4v4_results/
+ps4v4_work/
+outputs/
+labels/
+*.pkl
+*.npz
+*.jsonl
+*.rrd
+# frames / screenshots
+*.jpg
+*.jpeg
+*.png
+# archives (code zips for Colab, downloaded results)
+*.zip
+# ---- python / tooling ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.env
+*.log
