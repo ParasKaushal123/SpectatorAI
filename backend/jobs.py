@@ -78,7 +78,8 @@ def _run(job: dict, upload_path: Path) -> None:
                                 "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(inp)],
                                capture_output=True, text=True)
             if r.returncode != 0 or not inp.is_file():
-                raise RuntimeError("Could not read this video: " + (r.stderr.strip()[-300:] or "ffmpeg failed"))
+                (d / "ffmpeg.log").write_text(r.stderr or "")
+                raise RuntimeError("Could not read this file as a video. Try an .mp4 or .mov straight from a phone or camera.")
             cap = cv2.VideoCapture(str(inp))
             w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
