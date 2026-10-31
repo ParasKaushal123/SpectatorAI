@@ -1,0 +1,14 @@
+{
+  "label": "synthetic test",
+  "note": "code/tests/test_synthetic.py: 10 s generated clip with stand-in models (no real footage). Re-run on this PC on 2026-11-01: ALL CHECKS PASSED.",
+  "junk_frames_tracked": 0,
+  "other_person_frames_tracked": 0,
+  "knee_frames_tracked": 0,
+  "side_swaps": "0 / 474",
+  "left_still_left_after_crossing": 0.94,
+  "out_of_view_detected": 1.0,
+  "depth_jumps_over_10cm": 0,
+  "recall": 0.988,
+  "side_accuracy": 1.0,
+  "false_hand_rate": 0.0
+}

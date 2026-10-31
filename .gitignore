@@ -38,3 +38,17 @@ venv/
 .ipynb_checkpoints/
 .env
 *.log
+
+# --- SpectatorAI dashboard ---
+# footage and everything derived from it (bundled locally for the event only, never committed)
+results/
+raw_clips/
+data/
+weights/
+*.mp4
+*.mov
+# environments / builds
+.venv/
+frontend/node_modules/
+frontend/dist/
+data_server.log
