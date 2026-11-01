@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Landing from "./Landing";
 import Dataset from "./components/Dataset";
+import RoomPage from "./components/RoomPage";
 import Icon, { BrandMark } from "./components/Icon";
 import Showcase from "./Showcase";
 import Safe from "./components/Safe";
@@ -113,7 +114,7 @@ export default function App() {
   if (page === "landing") return <Landing onUpload={() => { location.hash = "/workspace"; }} />;
   const ready = !!clip;
   const active = page === "workspace" && !!wid && !ready;
-  const title = page === "dataset" ? wid || "Dataset" : job?.name ?? clip?.name ?? "No clip loaded";
+  const title = page === "dataset" ? wid || "Dataset" : page === "room" ? wid || "Room" : job?.name ?? clip?.name ?? "No clip loaded";
   return <div className={`app-shell ${navOpen ? "nav-expanded" : "nav-collapsed"} ${page === "workspace" ? "studio-workspace" : ""}`}>
     <header className="app-topbar"><a className="app-brand" href="#/landing"><BrandMark />SpectatorAI</a>
       <nav className="breadcrumbs" aria-label="Breadcrumb"><a href="#/library">Local workspace</a><span>›</span><span>{title}</span></nav>
@@ -179,7 +180,7 @@ export default function App() {
           {jobs.map(j => <article className="library-row" key={j.id}><a href={`#/workspace/${j.id}`}><b>{j.name}</b><small>{new Date(j.created * 1000).toLocaleString()} · {j.video?.duration_s.toFixed(1) ?? "—"} s</small></a><span>{j.quality?.grade ?? "—"}</span><span className="pill-sm">{j.status}</span><button className="btn-small" onClick={() => void remove(j.id)}>Delete</button></article>)}
           {clips.map(c => <article className="library-row" key={c.key}><a href={`#/workspace/demo:${encodeURIComponent(c.key)}`}><b>{c.name}</b><small>{c.model_label} · saved result</small></a><span className="pill-sm">Read only</span></article>)}
         </div>}
-        {page === "room" && <div className="room-placeholder"><span>⌂</span><h2>A room-fixed view is the next layer.</h2><p>SLAM runs separately using <code>ps5_world_slam.ipynb</code>, about 15–25 minutes per clip. It is outside the 1–2 minute workspace flow.</p><p>The current workspace shows head rotation and hands in the frame-zero camera reference. Room translation needs a separate SLAM run.</p></div>}
+        {page === "room" && <RoomPage key={wid} id={wid} panel={panel} />}
         {page === "settings" && <div className="settings-grid"><section className="settings-card"><span className="eyebrow">Colab connection</span><h2>{pill}</h2><p>Discovery: {connection?.source ?? "not found"} · {connection?.url_host ?? "No server"}</p><p>API key in local .env: {connection?.key_present ? "present" : "missing"}</p>
           <label>Manual server URL<input type="url" placeholder="https://….trycloudflare.com" value={manual} onChange={e => { setSettingsDirty(true); setManual(e.target.value); }} /></label>
           <div className="view-tools"><button className="btn-small" onClick={() => void save({ url: manual.trim() })}>Save URL</button><button className="btn-small" onClick={() => void check(true).catch(e => setError(String(e)))}>Test connection</button><button className="btn-small" onClick={() => { setManual(""); void save({ url: "" }); }}>Use discovery</button></div>

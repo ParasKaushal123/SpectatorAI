@@ -14,8 +14,8 @@ einops
 roma
 scikit-image
 huggingface_hub
-transformers
-# installed separately (see README):
+transformers>=4.45,<5
+# installed separately (see repository-root ARCHITECTURE.md):
 #   pip install --no-deps git+https://github.com/warmshao/WiLoR-mini
 #   pip install --no-build-isolation --no-deps git+https://github.com/mattloper/chumpy && python tools/patch_chumpy.py
 # optional:

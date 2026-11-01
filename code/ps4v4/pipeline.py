@@ -21,10 +21,10 @@ from .proposals import run_proposals
 from .quality import assess_clip
 from .recon import run_recon
 from .render import render
+from .scene import scene_metadata
 from .sequence import run_sequence
 from .tracklets import build_tracklets
 from .video import video_meta, cache_video, clear_video_cache
-from .scene import scene_metadata
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,8 @@ def run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str
         clear_video_cache(video_path)
 
 
-def _run_clip(video_path, cfg, clip_name=None, start_from=None, progress=None):
+def _run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str | None = None,
+              progress=None) -> dict:
     """progress: optional callback(module_name, "start" | "done" | "cached") for live status (the API server)."""
     clip_name = clip_name or Path(video_path).stem.replace("Copy of ", "").replace(" ", "_")
     meta = video_meta(video_path, cfg.max_seconds)
@@ -101,9 +102,8 @@ def _run_clip(video_path, cfg, clip_name=None, start_from=None, progress=None):
     seq = stage("M5", lambda: _save(cache, "sequence.pkl", run_sequence(meta, cam, tracks, recon, head["R"], cfg,
                                                                         asg["z_ref"])),
                 lambda: cache.load_pickle("sequence.pkl"))
-    # Dashboard scene metadata accompanies the hand and mesh exports.
-    cache.save_json("scene.json", scene_metadata(meta, cam, head, seq, cache.load_json("camera.json")))
     # M6 outputs (always cheap except render)
+    cache.save_json("scene.json", scene_metadata(meta, cam, head, seq, cache.load_json("camera.json")))
     export_jsonl(meta, seq, str(cache.path("hands.jsonl")))
     export_robot_csv(meta, seq, str(cache.path("robot_wrist_gripper.csv")))
     export_mesh(seq, recon.get("faces"), str(cache.path("hands_mesh.npz")))     # hand surfaces for the world view

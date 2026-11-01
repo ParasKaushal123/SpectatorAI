@@ -126,6 +126,9 @@ def run_world(clip: str, ps4: str, out: str, backend: str = "auto", slam_fps: fl
     export_jsonl(world, str(out / "world_hands.jsonl"))
     export_csv(world, str(out / "trajectory.csv"))
     stats["hand_meshes"] = export_mesh(world, str(out / "world_hands_mesh.npz"))
+    # room frame = (p_slam - origin) @ align.T; used by the room twin to share coordinates with world_hands.jsonl
+    json.dump({"align": world["align"].tolist(), "origin": world["origin"].tolist(), "backend": traj["backend"],
+               "n_frames": int(N), "fps": float(fps)}, open(out / "world_frame.json", "w"), indent=1)
     if rerun:
         t1 = time.time()
         export_rerun(world, str(out / "scene.rrd"), clip)

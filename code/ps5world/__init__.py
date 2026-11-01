@@ -5,4 +5,4 @@ Built on top of PS4 v4 results (hands.jsonl, camera.json, head_rot.pkl) and a SL
   * rotation  fallback: PS4's own head rotation, head position held fixed (seated clips)
 """
 
-VERSION = "1.3"   # 1.3: hand meshes (PS4 hands_mesh.npz) in render + world_hands_mesh.npz; 1.2: fix --max-seconds when the PS4 result is longer; 1.1: SLAM retries, mask guard, NaN checks
+VERSION = "1.4"   # 1.4: world_frame.json for the room twin; 1.3: hand meshes (PS4 hands_mesh.npz) in render + world_hands_mesh.npz; 1.2: fix --max-seconds when the PS4 result is longer; 1.1: SLAM retries, mask guard, NaN checks

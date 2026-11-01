@@ -20,6 +20,7 @@ from . import jobs as J
 from . import workspace as W
 from .routes import router as workspace_router
 from .dataset import router as dataset_router
+from .rooms import router as rooms_router
 
 sys.path.insert(0, str(C.ROOT / "code"))
 from ps4v4.models.wilor_loader import model_info  # noqa: E402
@@ -28,6 +29,7 @@ app = FastAPI(title="SpectatorAI")
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 app.include_router(workspace_router)
 app.include_router(dataset_router)
+app.include_router(rooms_router)
 SYNTHETIC = Path(__file__).with_name("synthetic_test.json")
 TRAINING = C.RESULTS / "training"
 

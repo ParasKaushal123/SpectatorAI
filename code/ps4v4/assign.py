@@ -151,11 +151,18 @@ def score_tracklet(f: dict, z_ref: float, ac) -> None:
     for pf in f["per_frame"]:
         v = ac.w_score * (np.clip(pf["score"], 0, 1) - 0.5) * 4
         zr = pf["dist"] / z_ref
-        if zr > ac.far_ratio:
-            v -= ac.w_far * min(1.0, (zr - ac.far_ratio) / 0.5 + 0.5)
-        if zr < ac.near_ratio or pf["dist"] < ac.abs_min_m:
+        # close work (hands near the lens, long reaches): a forearm that leaves through the BOTTOM of the image is
+        # the wearer's own arm, so "far", "too close" and "arm running away" are not evidence of another person
+        cw = bool(ac.get("close_work", False)) and np.isfinite(pf["exit_y"]) and \
+            pf["exit_y"] >= ac.get("bottom_exit_frac", 0.85)
+        far_r = ac.get("far_ratio_bottom", 3.0) if cw else ac.far_ratio
+        near_r = ac.get("near_ratio_bottom", 0.12) if cw else ac.near_ratio
+        if zr > far_r:
+            v -= ac.w_far * min(1.0, (zr - far_r) / 0.5 + 0.5)
+        if zr < near_r or pf["dist"] < ac.abs_min_m:
             v -= ac.w_near
-        v -= ac.w_away * np.clip((pf["toward_z"] - ac.away_z) / 0.4, 0, 1)
+        if not cw:
+            v -= ac.w_away * np.clip((pf["toward_z"] - ac.away_z) / 0.4, 0, 1)
         if np.isfinite(pf["exit_y"]) and pf["exit_y"] < ac.top_exit_frac:
             v -= ac.w_top
         if pf["kp_iou"] < ac.kp_iou_min:
@@ -163,7 +170,7 @@ def score_tracklet(f: dict, z_ref: float, ac) -> None:
         if pf.get("on_arm"):
             v -= ac.w_onarm
         wearer_like = (pf["toward_z"] < ac.away_z - 0.25 and zr < 1.5 and
-                       not (np.isfinite(pf["exit_y"]) and pf["exit_y"] < ac.top_exit_frac))
+                       not (np.isfinite(pf["exit_y"]) and pf["exit_y"] < ac.top_exit_frac)) or (cw and zr < far_r)
         if wearer_like and np.isfinite(pf.get("p_hand", np.nan)):
             # a clear hand AND the wearer's geometry (arm runs back toward the camera, arm's-reach distance):
             # lets a partly hidden hand (only wrist and back of the hand visible) count. Never applied to a

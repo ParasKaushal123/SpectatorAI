@@ -1,0 +1,9 @@
+# Consistent source files across Windows, Colab and Linux.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png -text
+*.jpg -text
+*.mp4 -text
+*.glb -text
+*.bin -text

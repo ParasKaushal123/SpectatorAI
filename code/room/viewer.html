@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room twin</title>
+<style>
+  :root { --bg:#141414; --panel:rgba(20,20,20,.86); --fg:#ececec; --mute:#9a9a9a; --accent:#7cc4ff; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,Segoe UI,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; }
+  #bar { position:fixed; left:12px; right:12px; bottom:12px; background:var(--panel); border-radius:12px; padding:10px 14px;
+         display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  #slider { flex:1; min-width:200px; accent-color:var(--accent); }
+  button,select { background:#262626; color:var(--fg); border:1px solid #3a3a3a; border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; }
+  button[aria-pressed=true] { border-color:var(--accent); color:var(--accent); }
+  #time { font-variant-numeric:tabular-nums; color:var(--mute); min-width:120px; }
+  #top { position:fixed; left:12px; top:12px; background:var(--panel); border-radius:12px; padding:8px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  #msg { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--mute); pointer-events:none; }
+  .lg { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="msg">Loading room…</div>
+<div id="top">
+  <strong>Room twin</strong>
+  <span><i class="lg" style="background:#3cc83c"></i>left</span>
+  <span><i class="lg" style="background:#ff8c00"></i>right</span>
+  <span style="color:var(--mute)">drag = orbit · right-drag = pan · wheel = zoom</span>
+  <button data-view="shoulder">Over shoulder</button>
+  <button data-view="eye">Worker's eye</button>
+  <button data-view="left">Left</button>
+  <button data-view="right">Right</button>
+  <button data-view="top">Top</button>
+  <button id="follow" aria-pressed="false">Follow head</button>
+</div>
+<div id="bar">
+  <button id="play">Play</button>
+  <input id="slider" type="range" min="0" max="0" value="0" aria-label="Time">
+  <span id="time">0.00 s</span>
+  <select id="speed" aria-label="Speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select>
+  <button id="trails" aria-pressed="true">Trails</button>
+  <button id="robotBtn" aria-pressed="true" hidden>Robot</button>
+  <button id="handsBtn" aria-pressed="true" hidden>Hands</button>
+  <span id="score" style="color:var(--mute)"></span>
+</div>
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js", "three/addons/": "./lib/addons/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.02, 50);
+camera.up.set(0, 0, 1);                                   // room frame: Z up, metres
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.minDistance = 0.15;
+controls.maxDistance = 3.0;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(0.5, -1, 2);
+scene.add(sun);
+
+const M = await (await fetch("motion.json")).json();
+const N = M.n, FPS = M.fps;
+const focus = new THREE.Vector3(...M.focus);
+
+// room: unlit vertex colours (the scan already contains the real lighting)
+new GLTFLoader().load("room.glb", (g) => {
+  g.scene.traverse((o) => {
+    if (o.isMesh) {
+      // glTF vertex colours are read as linear, but the scan's colours are sRGB camera colours: convert once
+      const c = o.geometry.attributes.color;
+      if (c) {
+        const lin = new Float32Array(c.count * 3);
+        const toLin = (x) => (x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
+        for (let i = 0; i < c.count; i++) { lin[3*i] = toLin(c.getX(i)); lin[3*i+1] = toLin(c.getY(i)); lin[3*i+2] = toLin(c.getZ(i)); }
+        o.geometry.setAttribute("color", new THREE.BufferAttribute(lin, 3));
+      }
+      o.material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    }
+  });
+  scene.add(g.scene);
+  document.getElementById("msg").style.display = "none";
+}, undefined, (e) => { document.getElementById("msg").textContent = "Could not load room.glb: " + e; });
+
+// hands: meshes when available, skeletons otherwise
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+const COLORS = { left: 0x3cc83c, right: 0xff8c00 };
+const hands = {};
+for (const s of ["left", "right"]) {
+  const H = M.hands[s];
+  const h = { H, mesh: null, q: null, skel: null, trail: null };
+  if (H.mesh && M.faces) {
+    h.q = new Int16Array(await (await fetch(`hands_${s}.bin`)).arrayBuffer());
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(H.verts * 3), 3));
+    geo.setIndex(M.faces);
+    h.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: COLORS[s], roughness: 0.55, metalness: 0.0 }));
+    h.mesh.frustumCulled = false;
+    scene.add(h.mesh);
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(BONES.length * 6), 3));
+  h.skel = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: COLORS[s] }));
+  h.skel.frustumCulled = false;
+  scene.add(h.skel);
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(Math.ceil(FPS) * 3 + 3), 3));
+  h.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: COLORS[s], transparent: true, opacity: 0.8 }));
+  h.trail.frustumCulled = false;
+  scene.add(h.trail);
+  hands[s] = h;
+}
+
+// robot replay (optional: robot.json + robot.glb + robot_motion.bin from run_robot.py)
+const robot = { on: false, nodes: [], M: null, R: null, show: true };
+try {
+  const r = await fetch("robot.json");
+  if (r.ok) {
+    robot.R = await r.json();
+    robot.M = new Float32Array(await (await fetch("robot_motion.bin")).arrayBuffer());
+    const g = await new GLTFLoader().loadAsync("robot.glb");
+    robot.nodes = robot.R.links.map((name) => {
+      const o = g.scene.getObjectByName(name);
+      if (o) { o.traverse((c) => {
+        if (!c.isMesh) return;
+        if (!c.geometry.attributes.normal) c.geometry.computeVertexNormals();
+        c.material = new THREE.MeshStandardMaterial({ vertexColors: !!c.geometry.attributes.color, color: 0xffffff, roughness: 0.45, metalness: 0.1 });
+      }); }
+      return o;
+    });
+    const root = new THREE.Group();
+    robot.nodes.forEach((o) => o && root.add(o));
+    scene.add(root);
+    robot.root = root; robot.on = true;
+    for (const id of ["robotBtn", "handsBtn"]) document.getElementById(id).hidden = false;
+    const S = robot.R.summary;
+    document.getElementById("score").textContent = `robot-copyable: ${Math.round(100 * S.copyable_share)}%`;
+  }
+} catch (e) { console.warn("no robot replay:", e); }
+const GRADE = ["no hand", "copyable", "out of reach", "too fast"];
+
+// head: camera frustum + gaze ray
+const headGeo = new THREE.BufferGeometry();
+headGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(16 * 3 + 6), 3));
+const head = new THREE.LineSegments(headGeo, new THREE.LineBasicMaterial({ color: 0x78dcff }));
+head.frustumCulled = false;
+scene.add(head);
+const C = [[-1,-0.6,1],[1,-0.6,1],[1,0.6,1],[-1,0.6,1]].map((v) => new THREE.Vector3(...v).multiplyScalar(0.09));
+
+let frame = 0, playing = false, showTrails = true, follow = false, last = performance.now(), acc = 0;
+const slider = document.getElementById("slider");
+slider.max = N - 1;
+
+function setFrame(f) {
+  frame = Math.max(0, Math.min(N - 1, f | 0));
+  slider.value = frame;
+  document.getElementById("time").textContent = `${(frame / FPS).toFixed(2)} s · f${frame}`;
+  for (const s of ["left", "right"]) {
+    const h = hands[s], H = h.H;
+    const src = H.src[frame];
+    const hasMesh = h.mesh && H.has_mesh[frame] === 1;
+    if (h.mesh) {
+      h.mesh.visible = hasMesh;
+      if (hasMesh) {
+        const pos = h.mesh.geometry.attributes.position.array, a = H.anchor[frame], n = H.verts, off = frame * n * 3;
+        for (let i = 0; i < n; i++) {
+          pos[3*i] = a[0] + h.q[off+3*i] * M.quant;
+          pos[3*i+1] = a[1] + h.q[off+3*i+1] * M.quant;
+          pos[3*i+2] = a[2] + h.q[off+3*i+2] * M.quant;
+        }
+        h.mesh.geometry.attributes.position.needsUpdate = true;
+        h.mesh.geometry.computeVertexNormals();
+      }
+    }
+    const J = H.joints[frame];
+    h.skel.visible = !hasMesh && src > 0;
+    h.skel.material.opacity = src === 3 ? 0.5 : 1;
+    if (h.skel.visible) {
+      const p = h.skel.geometry.attributes.position.array;
+      BONES.forEach(([a, b], k) => { for (let d = 0; d < 3; d++) { p[6*k+d] = J[3*a+d]; p[6*k+3+d] = J[3*b+d]; } });
+      h.skel.geometry.attributes.position.needsUpdate = true;
+    }
+    const tp = h.trail.geometry.attributes.position.array;
+    let k = 0;
+    for (let t = Math.max(0, frame - Math.ceil(FPS)); t <= frame; t++) {
+      if (H.src[t] > 0) { const w = H.joints[t]; tp[3*k] = w[0]; tp[3*k+1] = w[1]; tp[3*k+2] = w[2]; k++; }
+    }
+    h.trail.geometry.setDrawRange(0, k);
+    h.trail.geometry.attributes.position.needsUpdate = true;
+    h.trail.visible = showTrails && k > 1;
+  }
+  const hp = new THREE.Vector3(...M.head[frame]);
+  const q = new THREE.Quaternion(...M.quat[frame]);
+  const cw = C.map((c) => c.clone().applyQuaternion(q).add(hp));
+  const p = head.geometry.attributes.position.array;
+  const segs = [];
+  for (let i = 0; i < 4; i++) { segs.push(hp, cw[i], cw[i], cw[(i + 1) % 4]); }
+  segs.push(hp, hp.clone().add(new THREE.Vector3(...M.gaze[frame]).multiplyScalar(0.6)));
+  segs.forEach((v, i) => { p[3*i] = v.x; p[3*i+1] = v.y; p[3*i+2] = v.z; });
+  head.geometry.attributes.position.needsUpdate = true;
+  if (robot.on) {
+    const L = robot.nodes.length, fr = Math.min(frame, robot.R.n - 1);
+    robot.nodes.forEach((o, k) => {
+      if (!o) return;
+      const b = (fr * L + k) * 7, m = robot.M;
+      o.position.set(m[b], m[b+1], m[b+2]);
+      o.quaternion.set(m[b+3], m[b+4], m[b+5], m[b+6]);
+    });
+    robot.root.visible = robot.show;
+    const g = robot.R.grade;
+    document.getElementById("score").textContent =
+      `robot-copyable: ${Math.round(100 * robot.R.summary.copyable_share)}% · now L: ${GRADE[g.left[fr]]}, R: ${GRADE[g.right[fr]]}`;
+  }
+  if (follow) placeEye(false);
+}
+
+function placeEye(snap = true) {
+  const hp = new THREE.Vector3(...M.head[frame]);
+  const g = new THREE.Vector3(...M.gaze[frame]);
+  camera.position.copy(hp).addScaledVector(g, -0.05);
+  controls.target.copy(hp).addScaledVector(g, 0.5);
+  if (snap) controls.update();
+}
+
+function view(name) {
+  follow = false;
+  document.getElementById("follow").setAttribute("aria-pressed", "false");
+  const hp = new THREE.Vector3(...M.head[frame]);
+  const back = new THREE.Vector3(hp.x - focus.x, hp.y - focus.y, 0).normalize();
+  const side = new THREE.Vector3(-back.y, back.x, 0);
+  controls.target.copy(focus);
+  const set = (v) => camera.position.copy(focus).add(v);
+  if (name === "shoulder") set(back.clone().multiplyScalar(0.8).add(new THREE.Vector3(0, 0, 0.5)));
+  if (name === "left") set(side.clone().multiplyScalar(1.0).add(back.clone().multiplyScalar(0.3)).add(new THREE.Vector3(0, 0, 0.5)));
+  if (name === "right") set(side.clone().multiplyScalar(-1.0).add(back.clone().multiplyScalar(0.3)).add(new THREE.Vector3(0, 0, 0.5)));
+  if (name === "top") set(back.clone().multiplyScalar(0.3).add(new THREE.Vector3(0, 0, 1.3)));
+  if (name === "eye") placeEye();
+  controls.update();
+}
+
+document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => view(b.dataset.view));
+document.getElementById("follow").onclick = (e) => { follow = !follow; e.target.setAttribute("aria-pressed", String(follow)); if (follow) placeEye(); };
+document.getElementById("robotBtn").onclick = (e) => { robot.show = !robot.show; e.target.setAttribute("aria-pressed", String(robot.show)); setFrame(frame); };
+document.getElementById("handsBtn").onclick = (e) => {
+  const on = e.target.getAttribute("aria-pressed") !== "true";
+  e.target.setAttribute("aria-pressed", String(on));
+  for (const s of ["left", "right"]) { const h = hands[s]; if (h.mesh) h.mesh.material.opacity = on ? 1 : 0.0, h.mesh.material.transparent = !on, h.mesh.material.visible = on; h.skel.material.visible = on; }
+};
+document.getElementById("trails").onclick = (e) => { showTrails = !showTrails; e.target.setAttribute("aria-pressed", String(showTrails)); setFrame(frame); };
+const playBtn = document.getElementById("play");
+playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? "Pause" : "Play"; acc = 0; };
+slider.oninput = () => setFrame(+slider.value);
+window.addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); playBtn.click(); }
+  if (e.key === "ArrowRight") setFrame(frame + (e.shiftKey ? Math.round(FPS) : 1));
+  if (e.key === "ArrowLeft") setFrame(frame - (e.shiftKey ? Math.round(FPS) : 1));
+});
+
+// keep the orbit centre inside the filmed working area (no flying into unseen space)
+controls.addEventListener("change", () => {
+  if (follow) return;
+  const t = controls.target, lim = 0.9;
+  t.x = Math.max(focus.x - lim, Math.min(focus.x + lim, t.x));
+  t.y = Math.max(focus.y - lim, Math.min(focus.y + lim, t.y));
+  t.z = Math.max(focus.z - 0.6, Math.min(focus.z + 0.8, t.z));
+});
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize);
+resize();
+camera.position.set(...M.eye0);
+controls.target.copy(focus);
+controls.update();
+setFrame(0);
+window.__ready = true;
+
+function loop(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (playing) {
+    acc += dt * FPS * +document.getElementById("speed").value;
+    if (acc >= 1) { const k = Math.floor(acc); acc -= k; setFrame(frame + k >= N ? 0 : frame + k); }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

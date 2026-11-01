@@ -92,7 +92,11 @@ assign:                          # M3A: LEFT / RIGHT / REJECT per tracklet
   min_piece: 5                   # frames
   max_weight_frames: 90
   sweeps: 10
-  exit_margin_frac: 0.06         # coasting near the border is shown as EXITING
+  exit_margin_frac: 0.06
+  close_work: false              # true for clips with hands near the lens / long reaches (see notebooks: CLOSE_WORK)
+  bottom_exit_frac: 0.85         # close_work: forearm leaving through the bottom 15% = the wearer's arm
+  far_ratio_bottom: 3.0
+  near_ratio_bottom: 0.12         # coasting near the border is shown as EXITING
 
 recon:                           # M4 (and M3P)
   backend: wilor                 # egohand | wilor | fake
@@ -153,6 +157,3 @@ quality:                         # MQ: which parts of the clip are usable, and w
 evaluate:                        # M7
   labels_csv: null
   iou_match: 0.3
-
-video:
-  ram_cache: false              # opt-in via the dashboard fast profile

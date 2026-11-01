@@ -1,61 +1,5 @@
-# ---- dataset and anything derived from footage: never commit (hackathon data rules) ----
-# videos
-*.mp4
-*.MP4
-*.avi
-*.mov
-*.mkv
-*.webm
-# dataset / clip folders
-data/
-dataset/
-datasets/
-clips/
-videos/
-mytronD/
-# pipeline outputs and caches (contain footage-derived data)
-cache/
-results/
-ps4v4_results/
-ps5_world/
-ps4v4_work/
-outputs/
-labels/
-*.pkl
-*.npz
-*.jsonl
-*.rrd
-# frames / screenshots
-*.jpg
-*.jpeg
-*.png
-# archives (code zips for Colab, downloaded results)
-*.zip
-# ---- python / tooling ----
-__pycache__/
-*.pyc
-.venv/
-venv/
-.ipynb_checkpoints/
+# Private connection settings; keep the empty example public.
 .env
-*.log
-
-# dashboard and local models
-weights/
-node_modules/
-dist/
-dashboard/data/
-dashboard/results/
-dashboard/raw_clips/
-dashboard/.env
-
-# Local planning notes and assistant handoff prompts (keep on disk)
-/*_PLAN.md
-/*_PROMPT.md
-/CHATGPT*.md
-/code/docs/PROJECT_NOTES.md
-
-# Credentials and local connection configuration
 .env.*
 !.env.example
 !**/.env.example
@@ -64,25 +8,96 @@ api_url.json
 *.pem
 *.key
 
-# Model downloads and binary checkpoints
+# Original footage and anything derived from it.
+data/
+dataset/
+datasets/
+clips/
+videos/
+mytronD/
+raw_clips/
+results/
+outputs/
+labels/
+cache/
+weights/
+ps4v4_results/
+ps4v4_work/
+ps5_world/
+room_twin/
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[aA][vV][iI]
+*.[mM][kK][vV]
+*.[wW][eE][bB][mM]
+*.m4v
+*.wav
+*.mp3
+*.jpg
+*.jpeg
+*.png
+*.zip
+*.7z
+*.tar
+*.gz
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.jsonl
+*.csv
+*.rrd
+*.bin
+*.glb
+*.gltf
+*.ply
+*.obj
+*.stl
 *.pt
 *.pth
 *.ckpt
 *.safetensors
 *.onnx
 
-# Generated builds, test artifacts and local tools
-*.tsbuildinfo
+# Local notes, plans, assistant prompts and superseded documentation.
+.local-docs/
+/*_PLAN.md
+/*_PROMPT.md
+/CHATGPT*.md
+/PROJECT.md
+/PROJECT_DOCUMENTATION.md
+/START_HERE.md
+/code/docs/PROJECT_NOTES.md
+
+# Python environments, caches and test output.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 coverage/
+
+# Frontend dependencies/builds and generated synthetic fixtures.
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+/dashboard/frontend/src/__fixtures__/
 playwright-report/
 test-results/
+
+# Local tooling and temporary files.
+*.log
 *.tmp
 *.part
 *.bak
+*.local
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
