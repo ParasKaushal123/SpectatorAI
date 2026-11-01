@@ -13,23 +13,36 @@ from . import SIDES
 from .cache import ClipCache
 from .camera import estimate_head_rotation, estimate_intrinsics
 from .config import MODULE_ORDER
-from .export import export_jsonl, export_robot_csv, stability_stats
+from .export import export_jsonl, export_mesh, export_robot_csv, stability_stats
 from .geometry import FisheyeCamera
 from .assign import run_assign
 from .probe import run_probe
 from .proposals import run_proposals
+from .quality import assess_clip
 from .recon import run_recon
 from .render import render
 from .sequence import run_sequence
 from .tracklets import build_tracklets
-from .video import video_meta
+from .video import video_meta, cache_video, clear_video_cache
+from .scene import scene_metadata
 
 log = logging.getLogger(__name__)
 
 
-def run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str | None = None) -> dict:
+def run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str | None = None,
+             progress=None) -> dict:
+    try:
+        return _run_clip(video_path, cfg, clip_name, start_from, progress)
+    finally:
+        clear_video_cache(video_path)
+
+
+def _run_clip(video_path, cfg, clip_name=None, start_from=None, progress=None):
+    """progress: optional callback(module_name, "start" | "done" | "cached") for live status (the API server)."""
     clip_name = clip_name or Path(video_path).stem.replace("Copy of ", "").replace(" ", "_")
     meta = video_meta(video_path, cfg.max_seconds)
+    if cfg.get("video", {}).get("ram_cache", False):
+        cache_video(meta)
     cache = ClipCache(cfg.paths.cache_root, clip_name, cfg)
     if start_from:
         cache.invalidate_from(start_from, MODULE_ORDER)
@@ -39,11 +52,17 @@ def run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str
     def stage(name: str, fn, load):
         if cache.is_fresh(name):
             log.info("%s: cached", name)
+            if progress:
+                progress(name, "cached")
             return load()
+        if progress:
+            progress(name, "start")
         t0 = time.time()
         result = fn()
         timings[name] = time.time() - t0
         cache.mark_done(name)
+        if progress:
+            progress(name, "done")
         return result
 
     # M1 intrinsics
@@ -82,14 +101,23 @@ def run_clip(video_path: str, cfg, clip_name: str | None = None, start_from: str
     seq = stage("M5", lambda: _save(cache, "sequence.pkl", run_sequence(meta, cam, tracks, recon, head["R"], cfg,
                                                                         asg["z_ref"])),
                 lambda: cache.load_pickle("sequence.pkl"))
+    # Dashboard scene metadata accompanies the hand and mesh exports.
+    cache.save_json("scene.json", scene_metadata(meta, cam, head, seq, cache.load_json("camera.json")))
     # M6 outputs (always cheap except render)
     export_jsonl(meta, seq, str(cache.path("hands.jsonl")))
     export_robot_csv(meta, seq, str(cache.path("robot_wrist_gripper.csv")))
+    export_mesh(seq, recon.get("faces"), str(cache.path("hands_mesh.npz")))     # hand surfaces for the world view
     if cfg.render.enabled:
         stage("M6", lambda: render(meta, seq, recon.get("faces"), str(cache.path("render.mp4")), cfg, clip_name,
                                      asg["rejected"]),
               lambda: str(cache.path("render.mp4")))
+    # MQ clip quality: which parts are usable and why
+    if cfg.quality.enabled:
+        q = stage("MQ", lambda: _save_json(cache, "quality.json", assess_clip(meta, cam, head, seq, cfg)),
+                  lambda: cache.load_json("quality.json"))
     stats = stability_stats(meta, seq, timings)
+    if cfg.quality.enabled:
+        stats["quality"] = {k: q[k] for k in ("score", "grade", "subscores")} | {"usable_share": q["usable"]["share"]}
     stats["camera"] = cam.to_dict()
     stats["head_rotation_inlier_median"] = float(_median(head["inliers"]))
     stats["z_ref_m"] = round(float(asg["z_ref"]), 3)
@@ -106,8 +134,13 @@ def _save(cache: ClipCache, name: str, obj):
     return obj
 
 
+def _save_json(cache: ClipCache, name: str, obj):
+    cache.save_json(name, obj)
+    return obj
+
+
 def _save_cam(cache: ClipCache, cam: FisheyeCamera) -> FisheyeCamera:
-    cache.save_json("camera.json", cam.to_dict())
+    cache.save_json("camera.json", cam.to_dict() | {"gravity_samples": getattr(cam, "gravity_samples", [])})
     return cam
 
 

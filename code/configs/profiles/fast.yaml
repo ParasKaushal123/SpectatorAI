@@ -1,0 +1,6 @@
+video: {ram_cache: true}
+camera: {geocalib_frames: 3}
+proposals: {imgsz: 960, enhanced_pass: dark_only, batch: 32}
+probe: {stride: 5, max_per_tracklet: 24}
+recon: {wilor: {batch: 128}}
+render: {enabled: false}

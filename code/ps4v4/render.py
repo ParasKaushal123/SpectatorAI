@@ -158,7 +158,7 @@ def _dashed(img, p0, p1, col, thick=1, dash=6):
         cv2.line(img, tuple(a.astype(int)), tuple(b.astype(int)), col, thick, cv2.LINE_AA)
 
 
-def render(meta: VideoMeta, seq: dict, faces, out_path: str, cfg, title: str = "", rejected: dict | None = None) -> str:
+def render(meta: VideoMeta, seq: dict, faces, out_path: str, cfg, title: str = "", rejected: dict | None = None, progress=None) -> str:
     rc = cfg.render
     RH = rc.height
     lw = int(round(meta.width * RH / meta.height)) // 2 * 2
@@ -171,6 +171,8 @@ def render(meta: VideoMeta, seq: dict, faces, out_path: str, cfg, title: str = "
     for t, frame in iter_frames(meta):
         if t >= n_max:
             break
+        if progress and (t % max(1, int(meta.fps)) == 0 or t + 1 == n_max):
+            progress((t + 1) / n_max)
         left = cv2.resize(frame, (lw, RH), interpolation=cv2.INTER_AREA)
         if rc.show_rejected and rejected:
             for b, why in rejected.get(t, []):                  # tracklets M3A decided are not the wearer's hands

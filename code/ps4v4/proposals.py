@@ -65,9 +65,9 @@ def run_proposals(meta: VideoMeta, cfg) -> dict:
     for f0, frames in iter_batches(meta, pc.batch):
         raw = det.detect(frames, pc.imgsz, pc.min_score)
         enh = [np.zeros((0, 6))] * len(frames)
-        if pc.enhanced_pass == "auto":                  # only where it can help: dark frames or < 2 strong hands
+        if pc.enhanced_pass in ("auto", "dark_only"):                  # only where it can help: dark frames or < 2 strong hands
             need = [k for k, (f, r) in enumerate(zip(frames, raw))
-                    if (r[:, 4] >= 0.5).sum() < 2 or cv2.cvtColor(f[::8, ::8], cv2.COLOR_BGR2GRAY).mean() < 90]
+                    if (pc.enhanced_pass == "auto" and (r[:, 4] >= 0.5).sum() < 2) or cv2.cvtColor(f[::8, ::8], cv2.COLOR_BGR2GRAY).mean() < 90]
             if need:
                 res = det.detect([enhance(frames[k]) for k in need], pc.imgsz, pc.min_score)
                 for k, r in zip(need, res):

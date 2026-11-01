@@ -212,6 +212,13 @@ def main():
     assert right_back_s is not None and right_back_s < 0.5, "mid-frame re-entry not recovered within 0.5 s"
     assert jumps == 0, "depth jumps"
     assert m["side_accuracy"] >= 0.98 and m["recall"] > 0.85 and m["false_hand_rate"] < 0.05, m
+    # clip quality (MQ): the left hand's absence must show up as an out-of-view segment
+    q = json.load(open(tmp / "cache" / "synthetic" / "quality.json"))
+    oov = [sg for sg in q["segments"] if sg["lane"] == "left_hand" and sg["label"] == "out_of_view"]
+    print(f"quality                                : score {q['score']} ({q['grade']}), usable {q['usable']['share']:.0%}, "
+          f"left out of view {[(sg['start_s'], sg['end_s']) for sg in oov]}")
+    assert any(sg["start_s"] <= 3.0 and sg["end_s"] >= 4.4 for sg in oov), "left hand absence not reported"
+    assert 0 <= q["score"] <= 100 and q["usable"]["share"] > 0.5
     print("ALL CHECKS PASSED")
     return tmp
 

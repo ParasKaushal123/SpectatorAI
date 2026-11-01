@@ -20,8 +20,9 @@ MODULE_DEPS = {
     "M4": [],                               # full 3D on accepted hands (recon already hashed at M3P)
     "M5": ["sequence"],
     "M6": ["render"],
+    "MQ": ["quality"],
 }
-MODULE_ORDER = ["M1", "M2", "M1H", "M3", "M3P", "M3A", "M4", "M5", "M6"]
+MODULE_ORDER = ["M1", "M2", "M1H", "M3", "M3P", "M3A", "M4", "M5", "M6", "MQ"]
 
 
 class Config(dict):

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+from functools import lru_cache
 
 import cv2
 import numpy as np
@@ -34,10 +35,11 @@ def estimate_intrinsics(meta: VideoMeta, cfg) -> FisheyeCamera:
         return cam
     if c.use_geocalib:
         try:
-            f = _geocalib_focal(meta, c.geocalib_frames, cfg.device)
+            f, gravity = _geocalib_estimate(meta, c.geocalib_frames, cfg.device)
             cam = FisheyeCamera(meta.width, meta.height, f, f, meta.width / 2, meta.height / 2, np.zeros(4),
                                 source="geocalib_focal+equidistant")
             log.info("intrinsics from GeoCalib: f=%.1f", f)
+            cam.gravity_samples = gravity
             return cam
         except Exception as exc:                                   # noqa: BLE001 - fall back on any failure
             log.warning("GeoCalib failed (%s); using FOV guess", exc)
@@ -46,13 +48,23 @@ def estimate_intrinsics(meta: VideoMeta, cfg) -> FisheyeCamera:
     return cam
 
 
-def _geocalib_focal(meta: VideoMeta, n_frames: int, device: str) -> float:
-    import torch
+@lru_cache(maxsize=2)
+def geocalib_model(device: str):
     from geocalib import GeoCalib
+    return GeoCalib().to(device).eval()
+
+
+def _geocalib_focal(meta: VideoMeta, n_frames: int, device: str) -> float:
+    return _geocalib_estimate(meta, n_frames, device)[0]
+
+
+def _geocalib_estimate(meta: VideoMeta, n_frames: int, device: str):
+    import torch
 
     dev = device if (device == "cpu" or torch.cuda.is_available()) else "cpu"
-    model = GeoCalib().to(dev)
+    model = geocalib_model(dev)
     focals = []
+    gravity = []
     for idx in np.linspace(meta.n_frames * 0.05, meta.n_frames * 0.95, n_frames).astype(int):
         img = read_frame(meta, int(idx))
         if img is None:
@@ -60,9 +72,16 @@ def _geocalib_focal(meta: VideoMeta, n_frames: int, device: str) -> float:
         t = torch.from_numpy(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)).permute(2, 0, 1).float().div(255).to(dev)
         res = model.calibrate(t, camera_model="simple_divisional")
         focals.append(float(res["camera"].f.reshape(-1)[0]))
+        try:
+            # GeoCalib represents up; the scene schema requires down.
+            g = -res["gravity"].vec3d.detach().cpu().numpy().reshape(-1, 3)[0]
+            if np.isfinite(g).all():
+                gravity.append({"frame": int(idx), "down": g.tolist()})
+        except (KeyError, AttributeError, TypeError):
+            pass
     if not focals:
         raise RuntimeError("no frames calibrated")
-    return float(np.median(focals))
+    return float(np.median(focals)), gravity
 
 
 # ---- head rotation ----------------------------------------------------------

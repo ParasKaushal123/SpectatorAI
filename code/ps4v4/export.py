@@ -34,6 +34,26 @@ def export_jsonl(meta, seq: dict, path: str) -> None:
             fh.write(json.dumps({"frame": t, "t": round(t / meta.fps, 4), "hands": hands}) + "\n")
 
 
+def export_mesh(seq: dict, faces, path: str) -> bool:
+    """hands_mesh.npz: MANO faces + per side the frames with a mesh and the 778 vertices relative to the wrist
+    joint of kp3d_cam (camera frame, metres, float16 = 0.1 mm steps near the wrist). Absolute vertex position =
+    rel + kp3d_cam[wrist] from hands.jsonl. Used by the PS5 world view to draw real hand surfaces."""
+    if faces is None or all(seq[s].get("verts_cam") is None for s in SIDES):
+        return False
+    out = {"faces": np.asarray(faces, np.int32)}
+    for s in SIDES:
+        V, J, src = seq[s].get("verts_cam"), seq[s]["J_cam"], seq[s]["src"]
+        if V is None:                                                   # this hand was never reconstructed
+            out[f"{s}_frames"], out[f"{s}_rel"] = np.zeros(0, np.int32), np.zeros((0, 778, 3), np.float16)
+            continue
+        ok = (src > 0) & np.isfinite(V[:, 0, 0]) & np.isfinite(J[:, 0, 0])
+        idx = np.nonzero(ok)[0]
+        out[f"{s}_frames"] = idx.astype(np.int32)
+        out[f"{s}_rel"] = (V[idx] - J[idx, :1]).astype(np.float16)
+    np.savez_compressed(path, **out)
+    return True
+
+
 def export_robot_csv(meta, seq: dict, path: str) -> None:
     """Wrist pose in the head-stable frame (x right, y down, z forward at frame 0; metres) + gripper aperture."""
     rows = []
@@ -47,7 +67,8 @@ def export_robot_csv(meta, seq: dict, path: str) -> None:
                          "qx": q[0], "qy": q[1], "qz": q[2], "qw": q[3],
                          "grip": float(np.clip(np.linalg.norm(J[4] - J[8]) / hand_len, 0, 2)),
                          "source": SRC_NAME[int(d["src"][t])]})
-    pd.DataFrame(rows).sort_values(["frame", "side"]).round(5).to_csv(path, index=False)
+    columns = ["t", "frame", "side", "x", "y", "z", "qx", "qy", "qz", "qw", "grip", "source"]
+    pd.DataFrame(rows, columns=columns).sort_values(["frame", "side"]).round(5).to_csv(path, index=False)
 
 
 def stability_stats(meta, seq: dict, timings: dict) -> dict:

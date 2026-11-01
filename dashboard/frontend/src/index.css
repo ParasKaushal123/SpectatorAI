@@ -1,0 +1,102 @@
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "tailwindcss";
+
+/* Design system tokens (Coda style reference). Monument Grotesk -> Space Grotesk (max weight 700). */
+@theme {
+  --color-cream-parchment: #f8f9eb;
+  --color-pure-white: #ffffff;
+  --color-obsidian: #000000;
+  --color-charcoal: #202020;
+  --color-sage-mist: #c0c2a9;
+  --color-olive-slate: #5a5a4f;
+  --color-pebble: #7c7d76;
+  --color-bone: #edeee1;
+  --color-forest-depths: #003d21;
+  --color-mint-sprout: #aafdc0;
+  --color-cobalt-ink: #041668;
+  --color-plum-depth: #2d0078;
+  --color-wine-shadow: #3f0929;
+  --color-lilac-wash: #d3beff;
+  --color-sky-wash: #b0f4ff;
+  --color-rose-wash: #ffc0e6;
+
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-monument-grotesk-custom: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-jetbrains-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 1.37;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.43;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-subheading: 21px;
+  --text-subheading--line-height: 1.3;
+  --text-heading-sm: 25px;
+  --text-heading-sm--line-height: 1.3;
+  --text-heading: 34px;
+  --text-heading--line-height: 1.13;
+  --text-heading-lg: 45px;
+  --text-heading-lg--line-height: 1.02;
+  --text-display: 72px;
+  --text-display--line-height: 0.9;
+  --text-display-xl: 134px;
+  --text-display-xl--line-height: 0.9;
+
+  --spacing-4: 4px;
+  --spacing-6: 6px;
+  --spacing-9: 9px;
+  --spacing-13: 13px;
+  --spacing-14: 14px;
+  --spacing-17: 17px;
+  --spacing-18: 18px;
+  --spacing-27: 27px;
+  --spacing-36: 36px;
+  --spacing-45: 45px;
+  --spacing-63: 63px;
+  --spacing-72: 72px;
+  --spacing-89: 89px;
+  --spacing-107: 107px;
+
+  --radius-cards: 22px;
+  --radius-badges: 9999px;
+  --radius-buttons: 13px;
+  --radius-herocards: 45px;
+  --radius-largecards: 27px;
+  --radius-smallbuttons: 9px;
+}
+
+:root {
+  --page-max-width: 1200px;
+  --section-gap: 72px;
+  --card-padding: 27px;
+  --element-gap: 13px;
+  color-scheme: light;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--color-cream-parchment);
+  color: var(--color-obsidian);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .wrap { @apply mx-auto w-full px-[16px] md:px-27; max-width: var(--page-max-width); }
+  .pill { @apply inline-flex items-center gap-6 rounded-badges border-[1.5px] border-sage-mist px-13 py-9 font-mono text-caption uppercase text-charcoal; }
+  .pill-sm { @apply inline-flex items-center gap-4 rounded-badges border-[1.5px] border-sage-mist px-9 py-[3px] font-mono text-[10px] uppercase text-charcoal; }
+  .btn { @apply inline-flex items-center justify-center gap-9 rounded-buttons bg-charcoal px-18 py-13 text-body font-medium text-pure-white transition-colors hover:bg-[#2e2e2e] disabled:opacity-50 cursor-pointer; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-9 rounded-smallbuttons border-[1.5px] border-sage-mist px-18 py-13 text-body font-medium text-charcoal transition-colors hover:bg-bone cursor-pointer; }
+  .btn-ghost[aria-pressed="true"] { @apply border-obsidian bg-bone; }
+  .card { @apply rounded-cards border-[1.5px] border-obsidian bg-cream-parchment p-27; }
+  .card-soft { @apply rounded-cards border-[1.5px] border-sage-mist p-27; }
+  .display { @apply font-bold leading-[0.9] tracking-[-0.01em] text-obsidian; }
+  .label { @apply font-mono text-caption uppercase text-pebble; }
+}

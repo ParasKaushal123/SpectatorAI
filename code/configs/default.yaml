@@ -137,6 +137,22 @@ render:                          # M6
   max_seconds: null
   show_rejected: true            # grey boxes on tracklets judged "not the wearer's hand", with the reason
 
+quality:                         # MQ: which parts of the clip are usable, and why
+  enabled: true
+  min_segment_s: 0.3             # shorter blips merge into their neighbours
+  blur_relative: 0.40            # frame sharpness below 40% of this clip's typical (75th pct) = blurred
+  blur_absolute: 15.0            # ... or below this Laplacian variance at quarter resolution
+  head_fast_dps: 90.0            # head turning faster than this (deg/s) = fast_turn
+  body_motion_frac_diag: 0.004   # background motion not explained by head rotation (px/frame / image diagonal)
+  partial_joints_in_image: 0.7   # < 70% of the hand's joints inside the image = partial
+  low_confidence: 0.25           # 3D confidence below this = low_confidence
+  timeline_hz: 10
+  score_weights: {hand_visibility: 0.30, both_hands: 0.15, image_clarity: 0.20, camera_stability: 0.20,
+                  tracking_confidence: 0.15}
+
 evaluate:                        # M7
   labels_csv: null
   iou_match: 0.3
+
+video:
+  ram_cache: false              # opt-in via the dashboard fast profile

@@ -21,3 +21,6 @@ transformers
 # optional:
 #   GeoCalib (focal length): pip install git+https://github.com/cvg/GeoCalib
 #   SAM 2 (tracker.propagate=sam2): pip install git+https://github.com/facebookresearch/sam2
+# PS5 world view (separate runtime recommended; ViPE pins transformers<5):
+#   pip install --no-build-isolation nvidia-vipe rerun-sdk
+# API server (Colab): fastapi, uvicorn[standard], python-multipart   | client: requests

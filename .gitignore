@@ -17,6 +17,7 @@ mytronD/
 cache/
 results/
 ps4v4_results/
+ps5_world/
 ps4v4_work/
 outputs/
 labels/
@@ -38,3 +39,50 @@ venv/
 .ipynb_checkpoints/
 .env
 *.log
+
+# dashboard and local models
+weights/
+node_modules/
+dist/
+dashboard/data/
+dashboard/results/
+dashboard/raw_clips/
+dashboard/.env
+
+# Local planning notes and assistant handoff prompts (keep on disk)
+/*_PLAN.md
+/*_PROMPT.md
+/CHATGPT*.md
+/code/docs/PROJECT_NOTES.md
+
+# Credentials and local connection configuration
+.env.*
+!.env.example
+!**/.env.example
+connection.json
+api_url.json
+*.pem
+*.key
+
+# Model downloads and binary checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Generated builds, test artifacts and local tools
+*.tsbuildinfo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage/
+playwright-report/
+test-results/
+*.tmp
+*.part
+*.bak
+.DS_Store
+Thumbs.db

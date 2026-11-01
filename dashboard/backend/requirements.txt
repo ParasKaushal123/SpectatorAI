@@ -1,0 +1,24 @@
+# dashboard API
+fastapi
+uvicorn[standard]
+python-multipart
+imageio-ffmpeg
+# PS4 pipeline (code/requirements.txt), CPU build of torch is installed separately by setup
+numpy
+scipy
+opencv-python
+pandas
+pyyaml
+ultralytics
+smplx==0.1.28
+timm
+einops
+roma
+scikit-image
+huggingface_hub
+transformers
+setuptools
+wheel
+
+httpx
+python-dotenv

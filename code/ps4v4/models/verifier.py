@@ -8,6 +8,7 @@ being mistaken for hands, and returns P(hand). Used as one more piece of evidenc
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 
 import cv2
 import numpy as np
@@ -72,11 +73,16 @@ class FakeVerifier:
         return np.array(out), other
 
 
+@lru_cache(maxsize=2)
+def _clip_verifier(model_id, device):
+    return ClipVerifier(model_id, device)
+
+
 def make_verifier(cfg):
     pc = cfg.probe
     if pc.verifier == "clip":
         try:
-            return ClipVerifier(pc.clip_model, cfg.device)
+            return _clip_verifier(pc.clip_model, cfg.device)
         except Exception as exc:                                    # noqa: BLE001 - optional evidence
             log.warning("CLIP verifier unavailable (%s); continuing without it", exc)
             return None
