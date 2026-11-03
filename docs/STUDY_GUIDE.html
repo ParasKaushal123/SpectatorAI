@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpectatorAI Study Guide</title>
+<style>
+:root{--bg:#f7f7f2;--card:#fff;--ink:#1d1f1c;--mute:#5d625a;--line:#dcdfd3;--accent:#1d6b4f;--accent2:#2f4fb3;--warn:#a2581b;--chip:#eef1e6;--code:#f0f2ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141614;--card:#1d201d;--ink:#e9ece4;--mute:#a3a99f;--line:#30352f;--accent:#5fd3a1;--accent2:#8ea8ff;--warn:#f0a76a;--chip:#262a25;--code:#232722}}
+:root[data-theme=dark]{--bg:#141614;--card:#1d201d;--ink:#e9ece4;--mute:#a3a99f;--line:#30352f;--accent:#5fd3a1;--accent2:#8ea8ff;--warn:#f0a76a;--chip:#262a25;--code:#232722}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header{padding:48px 0 24px;border-bottom:1px solid var(--line)}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:0 0 10px}
+h2{font-size:26px;margin:48px 0 12px}
+h3{font-size:19px;margin:24px 0 6px}
+p.lead{font-size:19px;color:var(--mute);max-width:720px}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:6px;overflow-x:auto;padding:10px 16px}
+nav a{white-space:nowrap;color:var(--ink);text-decoration:none;font-size:14px;padding:6px 10px;border-radius:999px;background:var(--chip)}
+nav a:hover{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid .card{margin:0}
+.tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--accent);margin-right:6px}
+.tag.ours{color:var(--accent2)}
+.tag.lib{color:var(--warn)}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.flow b{color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.03em}
+.tablewrap{overflow-x:auto}
+code{background:var(--code);padding:1px 6px;border-radius:6px;font-size:14px}
+.analogy{border-left:4px solid var(--accent);padding:6px 14px;margin:10px 0;color:var(--mute)}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+footer{color:var(--mute);font-size:14px;padding:40px 0 60px;border-top:1px solid var(--line);margin-top:48px}
+#theme{position:fixed;right:14px;bottom:14px;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 12px;cursor:pointer;font:inherit;font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="tag">Study guide</span>
+  <h1>SpectatorAI, explained simply</h1>
+  <p class="lead">We turn a factory worker's head-camera video into data a robot can learn from. The output is the worker's hands in 3D, which seconds are good, where everything is in the room, and a robot copying the motion.</p>
+</div></header>
+<nav><div class="wrap">
+  <a href="#idea">Big idea</a><a href="#words">Key words</a><a href="#pipeline">Pipeline</a><a href="#ps4">Hand tracking</a>
+  <a href="#mq">Clip rating</a><a href="#slam">SLAM</a><a href="#room">Room twin</a><a href="#robot">Robot</a>
+  <a href="#models">Models &amp; libraries</a><a href="#app">The app</a><a href="#new">What's new</a><a href="#qa">Q&amp;A</a>
+</div></nav>
+<main class="wrap">
+
+<section id="idea">
+<h2>1. The big idea</h2>
+<p>Robots can learn tasks by watching people. The cheapest way to film people working is a camera on their head. That video is messy, though:</p>
+<div class="grid">
+  <div class="card"><b>Whose hand is it?</b><br>Co-workers' hands are in view, and knees, gloves or tools can look like hands.</div>
+  <div class="card"><b>Left or right?</b><br>When the hands cross, simple trackers mix them up.</div>
+  <div class="card"><b>Bent picture</b><br>The fisheye lens curves the image, most of all at the edges where the hands often are.</div>
+  <div class="card"><b>Moving camera</b><br>The head moves all the time, so "where" the hand is changes even when the hand stays still.</div>
+  <div class="card"><b>Bad seconds</b><br>Blur, fast head turns and walking make some parts useless for training.</div>
+</div>
+<p class="analogy">Think of us as a sports analyst for hands. We find the player (the wearer's hands), track them all game (left stays left), mark which replays are clear enough to study, map the stadium (the room), and finally have a robot repeat the play.</p>
+</section>
+
+<section id="words">
+<h2>2. Key words in plain English</h2>
+<div class="tablewrap"><table>
+<tr><th>Word</th><th>Meaning</th></tr>
+<tr><td>Egocentric video</td><td>Video filmed from the person's own point of view (a head camera).</td></tr>
+<tr><td>Fisheye lens</td><td>A very wide lens that sees about 180°, but bends straight lines.</td></tr>
+<tr><td>Keypoints / joints</td><td>21 points on each hand: the wrist plus 4 points on each finger.</td></tr>
+<tr><td>MANO</td><td>A standard 3D hand model. Set its finger angles and you get a realistic hand surface (mesh).</td></tr>
+<tr><td>Tracklet</td><td>A short chain of boxes, one per frame, that probably belong to the same object.</td></tr>
+<tr><td>Log-odds</td><td>A running score of evidence: positive means "probably yes", negative "probably no". Each clue adds or subtracts.</td></tr>
+<tr><td>Intrinsics</td><td>Lens settings (focal length, centre). They are needed to turn pixels into real directions.</td></tr>
+<tr><td>SLAM</td><td>Simultaneous Localization And Mapping: working out where the camera is <i>and</i> what the room looks like, from the video alone.</td></tr>
+<tr><td>Metric</td><td>In real units (metres), not pixels.</td></tr>
+<tr><td>Coordinate frame</td><td>A choice of "where zero is and which way is up". Ours: Z is up, Y is forward, and zero is the worker's head at the start.</td></tr>
+<tr><td>Depth map</td><td>An image where each pixel stores how far away that point is.</td></tr>
+<tr><td>TSDF fusion</td><td>A way to merge many depth maps into one clean 3D surface, a bit like averaging many sketches into one sculpture.</td></tr>
+<tr><td>Inverse kinematics (IK)</td><td>Given where you want a robot's hand to be, find the joint angles that put it there.</td></tr>
+</table></div>
+</section>
+
+<section id="pipeline">
+<h2>3. The whole pipeline at a glance</h2>
+<div class="flow"><span>Head-cam video</span><b>→</b><span>1. Hand tracking (PS4)</span><b>→</b><span>2. Clip rating (MQ)</span><b>→</b><span>3. SLAM world</span><b>→</b><span>4. Room twin</span><b>→</b><span>5. Robot replay</span><b>→</b><span>Website</span></div>
+<p>The heavy steps (1–4) run on a <b>Google Colab A100 GPU</b>. The website and the robot step run on a <b>laptop</b>. Each step saves files that the next step reads, so any step can be re-run on its own.</p>
+</section>
+
+<section id="ps4">
+<h2>4. Step 1: Hand tracking (PS4 v4)</h2>
+<p><b>The trick: track first, decide later.</b> Instead of asking "is this a hand?" on every frame, we collect every possible hand, link the detections over time, gather evidence about each chain, and only then decide.</p>
+<div class="tablewrap"><table>
+<tr><th>Step</th><th>What happens</th><th>Simple picture</th></tr>
+<tr><td>M1 Camera</td><td>GeoCalib estimates the lens focal length from a few frames.</td><td>Measuring the glasses before reading.</td></tr>
+<tr><td>M2 Detect</td><td>WiLoR's detector draws boxes around anything hand-like, even weak guesses.</td><td>A wide net: catch everything first.</td></tr>
+<tr><td>M1H Head motion</td><td>The background is tracked to measure how the head turns. The hands are hidden so they don't confuse it.</td><td>Knowing the camera turned left, not the room.</td></tr>
+<tr><td>M3 Tracklets</td><td>Boxes are linked frame to frame. Chains are cut where two hands overlap, or where the detector's left/right call flips for good.</td><td>Cut the rope where two ropes tangle.</td></tr>
+<tr><td>M3P Probe</td><td>Each chain is checked in 3D: how far away it is, where the forearm leaves the picture, which way the arm points, and what CLIP says it looks like.</td><td>Interviewing each suspect.</td></tr>
+<tr><td>M3A Decide</td><td>All the clues are added up: LEFT, RIGHT or REJECT, with a written reason.</td><td>The verdict, with notes.</td></tr>
+<tr><td>M4 3D hands</td><td>WiLoR rebuilds each hand in 3D on an "un-bent" crop of the fisheye image.</td><td>Flattening a curved photo before tracing it.</td></tr>
+<tr><td>M5 Smooth</td><td>Jitter is removed, tiny gaps filled, and short out-of-view moments guessed. Every guess is labelled "estimated".</td><td>Honest gap-filling.</td></tr>
+<tr><td>M6 Export</td><td>3D joints, hand meshes, a robot wrist file and a video with the 3D view.</td><td>The report.</td></tr>
+</table></div>
+<div class="card"><b>How "the wearer's hand" is recognised:</b> your own hands are always within arm's reach, and your forearm enters the picture from the bottom. Hands that are too far, whose arm comes from the top, or whose arm points away from you belong to someone else. CLIP may only <i>veto</i> things that don't look like a hand, such as a knee or a block of wood. It can never accept a track on its own, because a co-worker's hand also looks like a hand.</div>
+<div class="card"><b>Close-work mode:</b> some clips have hands right in front of the lens or reaching far. There, an arm that enters from the bottom of the picture is trusted as the wearer's, even if it looks "too close" or "too far".</div>
+</section>
+
+<section id="mq">
+<h2>5. Step 2: Clip rating (usable vs unusable)</h2>
+<p>For every moment of the video we check four things. A second is <b>usable</b> only if all four hold:</p>
+<div class="grid">
+  <div class="card"><span class="tag">Hands</span><br>At least one hand is visible (or partly visible).</div>
+  <div class="card"><span class="tag">Image</span><br>The frame is sharp (no motion blur).</div>
+  <div class="card"><span class="tag">Head</span><br>The head isn't turning fast (under 90° per second).</div>
+  <div class="card"><span class="tag">Body</span><br>The person isn't walking or leaning (background motion that head-turning doesn't explain).</div>
+</div>
+<p>The output is a timeline with reasons (for example, "6.3–9.1 s unusable: head turning fast, blur") and a score from 0 to 100 with a grade from A to D. Teams can then train only on the good seconds, and tell camera operators what to fix.</p>
+</section>
+
+<section id="slam">
+<h2>6. Step 3: SLAM, putting everything in a fixed room</h2>
+<p>Hand tracking alone tells you where the hands are <i>relative to the head</i>. If the worker leans, a still hand seems to move. SLAM works out the head's real position and rotation in the room, in metres, with the right "up".</p>
+<ol>
+<li><b>Track the camera</b> with NVIDIA ViPE, which handles fisheye lenses and learns depth.</li>
+<li><b>Hide moving things</b> (hands, arms, people), so only the still room is used to locate the camera.</li>
+<li><b>Put the hands back</b> into that room, fixing any lens-size error on the way.</li>
+<li><b>Find gravity</b> (from GeoCalib and the flat bench or floor), so Z points up.</li>
+<li><b>Add the body:</b> head, gaze direction, neck, pelvis and facing direction.</li>
+<li><b>Never crash:</b> if SLAM struggles, retry with safer settings, then fall back to head rotation only.</li>
+</ol>
+<p class="analogy">PS4 tells you <b>what</b> the hands do. SLAM tells you <b>where</b> they do it, which is what a robot bolted to the floor needs.</p>
+</section>
+
+<section id="room">
+<h2>7. Step 4: Room twin, a 3D copy of the workstation</h2>
+<p>The worker sits in one spot, so the camera barely moves. Normal 3D scanning needs the camera to move around, so we use a different trick:</p>
+<ol>
+<li>Cut each fisheye frame into 5 normal "virtual camera" views.</li>
+<li><b>MoGe-2</b> guesses the distance of every pixel in metres.</li>
+<li>Correct those distances using the SLAM map, which is more reliable.</li>
+<li>Line up a second video of the same workstation with the first (ICP alignment).</li>
+<li>Merge everything into one coloured 3D mesh (TSDF fusion).</li>
+</ol>
+<p>Result: a 3D workstation in the <b>same coordinates</b> as the hands, so the hands sit on the bench. It's accurate near the seat. Areas the camera never saw stay empty.</p>
+</section>
+
+<section id="robot">
+<h2>8. Step 5: Robot replay</h2>
+<p>Two virtual <b>Franka Panda</b> robot arms copy the worker's hands. No training is needed: for every frame we solve "what joint angles put the gripper where the hand is?" (inverse kinematics).</p>
+<ul>
+<li><b>Gripper position:</b> between the palm and the thumb–index pinch. <b>Pointing direction:</b> from the wrist to the middle knuckle.</li>
+<li><b>Gripper opening:</b> the thumb-to-index distance.</li>
+<li>Every frame gets a <b>grade</b>: copyable, out of reach, too fast for the robot, or no hand.</li>
+<li>Our real 2-minute clip: <b>79% robot-copyable</b>. Most of the rest is wrist motion too fast for the arm.</li>
+</ul>
+</section>
+
+<section id="models">
+<h2>9. Models and libraries we used</h2>
+<p><span class="tag">pretrained model</span> someone else trained it, and we use it as a tool. <span class="tag ours">ours</span> we built it. <span class="tag lib">library</span> a software toolkit.</p>
+<div class="grid">
+  <div class="card"><span class="tag">pretrained model</span><h3>WiLoR</h3>A hand detector (YOLO-style) plus a 3D hand rebuilder. It finds hands, says left or right, and outputs MANO 3D hands. We use it for detection and for 3D.</div>
+  <div class="card"><span class="tag">pretrained model</span><h3>MANO</h3>The standard parametric 3D hand: 778 surface points driven by about 45 joint angles. It's what makes the hands look like real hands, not stick figures.</div>
+  <div class="card"><span class="tag">pretrained model</span><h3>CLIP (OpenAI)</h3>Matches images with text. We ask "is this crop a hand, a knee, a foot, wood or a tool?", and only use the answer to reject junk.</div>
+  <div class="card"><span class="tag">pretrained model</span><h3>GeoCalib</h3>Estimates the lens focal length and gravity direction from one image. It gives us lens settings and "which way is down".</div>
+  <div class="card"><span class="tag">pretrained model</span><h3>NVIDIA ViPE</h3>Video pose engine: camera tracking (DROID-SLAM style bundle adjustment) with metric depth. Inside it, GroundingDINO + SAM find and cut out people and hands, and UniDepth gives depth. This is our SLAM.</div>
+  <div class="card"><span class="tag">pretrained model</span><h3>MoGe-2 (Microsoft)</h3>Estimates distance in metres for every pixel from a single image. Used to build the room twin.</div>
+  <div class="card"><span class="tag lib">library</span><h3>Open3D</h3>3D-processing toolkit. Used for TSDF fusion into a mesh, ICP alignment of two videos, and ray-cast rendering of the fly-through.</div>
+  <div class="card"><span class="tag lib">library</span><h3>MuJoCo + Menagerie + mink</h3>MuJoCo is a robot simulator, Menagerie supplies a ready-made Franka Panda model, and mink solves inverse kinematics. Together they make the robot replay.</div>
+  <div class="card"><span class="tag lib">library</span><h3>OpenCV, NumPy, SciPy, PyTorch</h3>The everyday tools for video decoding, optical flow, maths, smoothing and running neural networks on the GPU.</div>
+  <div class="card"><span class="tag lib">library</span><h3>three.js / react-three-fiber</h3>3D in the web browser. Draws the room, hand meshes, head and robot, with orbit and pan controls and a time slider.</div>
+  <div class="card"><span class="tag lib">library</span><h3>FastAPI + React</h3>FastAPI is the Python web server, used on both Colab and the laptop. React builds the website pages.</div>
+  <div class="card"><span class="tag lib">library</span><h3>Rerun, ffmpeg, trimesh</h3>Rerun is a 3D recording viewer, ffmpeg encodes video, and trimesh writes the 3D files (.glb) the website loads.</div>
+  <div class="card"><span class="tag ours">ours</span><h3>The glue that makes it work</h3>Tracklets, evidence scoring, wearer-only rules, fisheye crops, honest gap labels, clip rating, hand re-placement into SLAM, the room-twin recipe, robot grading, caching, the API and the dashboard.</div>
+</div>
+</section>
+
+<section id="app">
+<h2>10. The app (how it is used)</h2>
+<div class="flow"><span>Upload a video on the website</span><b>→</b><span>Laptop shrinks it and sends it to Colab</span><b>→</b><span>GPU runs hand tracking + rating</span><b>→</b><span>Results come back</span><b>→</b><span>Explore in 3D</span></div>
+<ul>
+<li><b>Workspace:</b> the video and 3D hands side by side, a slider, quality lanes, and export.</li>
+<li><b>Room:</b> orbit around the 3D workstation while the hands, head and gaze replay. Open the robot view to watch the two arms copy them on the same timeline.</li>
+<li><b>Dataset / Library:</b> all processed clips.</li>
+<li><b>Safety:</b> the secret key stays on the laptop, Colab switches itself off after 5 idle minutes, and footage never goes to GitHub.</li>
+</ul>
+</section>
+
+<section id="new">
+<h2>11. What is new about our work</h2>
+<ol>
+<li><b>Track first, decide later:</b> left stays left, even through crossings.</li>
+<li><b>Only the wearer's hands:</b> geometry-based rules, with CLIP only allowed to say no.</li>
+<li><b>Fisheye-correct 3D</b> from un-bent crops.</li>
+<li><b>Honest gaps:</b> every guess is labelled.</li>
+<li><b>Clip rating</b> with reasons, to pick training data.</li>
+<li><b>SLAM that ignores hands, then puts them back</b> into a level, metric room.</li>
+<li><b>A 3D room from a sitting worker's video</b> (depth scaled to SLAM, two videos merged).</li>
+<li><b>A robot "copyability" score</b> per frame, without any training.</li>
+</ol>
+</section>
+
+<section id="qa">
+<h2>12. Likely questions (with answers)</h2>
+<details><summary>Is the 3D hand model yours?</summary><p>The 3D hand model is pretrained WiLoR. Our work is everything around it: choosing which detections are the wearer's, keeping left and right correct, fixing the fisheye distortion, smoothing, labelling gaps, rating the clip, and placing everything in the room.</p></details>
+<details><summary>The hands already looked right before SLAM. What did SLAM add?</summary><p>SLAM doesn't change the hand shapes. It fixes <i>where</i> they are: a fixed room instead of relative to a moving head, real metres and gravity, head, gaze and body data, and it makes the room twin and the robot replay possible.</p></details>
+<details><summary>How accurate is it?</summary><p>On synthetic tests with known answers: 98.8% hand recall, 100% correct sides, hand position within 1 cm in the room, and room geometry within about 0.4 cm. The real 40 clips were checked by eye on the hardest cases. Accuracy against hand-labelled real frames is the next measurement.</p></details>
+<details><summary>Why no Gaussian splats or photo-real room?</summary><p>The worker barely moves, so methods that need many viewpoints smear. We chose accurate depth-based geometry first. A realistic appearance layer can be added on top later.</p></details>
+<details><summary>Does the robot need training?</summary><p>No. It's inverse kinematics: maths that finds joint angles for each frame. A 2-minute clip takes seconds on a laptop.</p></details>
+<details><summary>How long does it take?</summary><p>Full-quality hand tracking takes about 25 minutes per 3-minute clip on an A100 (4 in parallel). The website's fast mode targets 1–2 minutes for a 30-second clip. SLAM takes about 7 minutes per clip, and the room about 15 minutes.</p></details>
+</section>
+</main>
+<footer><div class="wrap">SpectatorAI study guide. Footage used only for the hackathon; no clips, frames or results are published.</div></footer>
+<button id="theme" aria-label="Toggle theme">Theme</button>
+<script>
+const b=document.getElementById('theme');
+b.onclick=()=>{const r=document.documentElement,cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';try{localStorage.setItem('sg-theme',r.dataset.theme)}catch(e){}};
+try{const t=localStorage.getItem('sg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
+</script>
+</body>
+</html>

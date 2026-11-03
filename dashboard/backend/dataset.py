@@ -22,8 +22,12 @@ def videos():
             if not path.resolve().is_relative_to(root):
                 continue
             key = sha256((folder + "/" + path.relative_to(root).as_posix()).encode()).hexdigest()[:24]
+            # Include the file revision in the URL.  The catalogue key is deliberately
+            # stable (it identifies the dataset slot), while this token makes browsers
+            # fetch a newly replaced render instead of replaying a cached older file.
+            revision = f"{path.stat().st_mtime_ns:x}-{path.stat().st_size:x}"
             yield path, {"key": key, "id": path.stem, "folder": folder, "name": path.name,
-                         "url": f"/api/dataset/videos/{key}"}
+                         "url": f"/api/dataset/videos/{key}?v={revision}"}
 
 
 @router.get("")
